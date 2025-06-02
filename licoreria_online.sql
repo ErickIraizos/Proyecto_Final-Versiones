@@ -1,0 +1,218 @@
+-- Creación de la base de datos
+CREATE DATABASE IF NOT EXISTS licoreria_online;
+USE licoreria_online;
+
+-- Eliminar la base de datos si es necesario (comentado para evitar eliminación accidental)
+-- DROP DATABASE IF EXISTS licoreria_online;
+UPDATE usuarios
+SET nombre = 'pepe',
+    rol = 'admin'
+WHERE email = 'pepe@gmail.com';
+-- Tabla de categorías de productos
+CREATE TABLE categorias (
+    categoria_id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL,
+    descripcion TEXT,
+    imagen_url VARCHAR(255),
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    activa BOOLEAN DEFAULT TRUE
+);
+
+-- Tabla de productos
+CREATE TABLE productos (
+    producto_id INT AUTO_INCREMENT PRIMARY KEY,
+    categoria_id INT NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    precio DECIMAL(10,2) NOT NULL,
+    precio_oferta DECIMAL(10,2),
+    stock INT NOT NULL DEFAULT 0,
+    imagen_url VARCHAR(255),
+    marca VARCHAR(50),
+    grado_alcoholico DECIMAL(5,2),
+    pais_origen VARCHAR(50),
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    activo BOOLEAN DEFAULT TRUE,
+    destacado BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (categoria_id) REFERENCES categorias(categoria_id) ON DELETE CASCADE
+);
+
+-- Tabla de usuarios
+CREATE TABLE usuarios (
+    usuario_id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    nombre VARCHAR(50) NOT NULL,
+    apellido VARCHAR(50) NOT NULL,
+    direccion TEXT,
+    telefono VARCHAR(20),
+    fecha_nacimiento DATE,
+    rol ENUM('admin', 'cliente') DEFAULT 'cliente',
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    activo BOOLEAN DEFAULT TRUE,
+    token_verificacion VARCHAR(255),
+    verificado BOOLEAN DEFAULT FALSE
+);
+
+-- Tabla de pedidos
+CREATE TABLE pedidos (
+    pedido_id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    fecha_pedido TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    estado ENUM('pendiente', 'procesando', 'enviado', 'entregado', 'cancelado') DEFAULT 'pendiente',
+    total DECIMAL(10,2) NOT NULL,
+    direccion_envio TEXT NOT NULL,
+    metodo_pago ENUM('tarjeta', 'efectivo', 'transferencia') NOT NULL,
+    notas TEXT,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id) ON DELETE CASCADE
+);
+
+-- Tabla de detalles de pedido
+CREATE TABLE detalles_pedido (
+    detalle_id INT AUTO_INCREMENT PRIMARY KEY,
+    pedido_id INT NOT NULL,
+    producto_id INT NOT NULL,
+    cantidad INT NOT NULL,
+    precio_unitario DECIMAL(10,2) NOT NULL,
+    subtotal DECIMAL(10,2) NOT NULL,
+    FOREIGN KEY (pedido_id) REFERENCES pedidos(pedido_id) ON DELETE CASCADE,
+    FOREIGN KEY (producto_id) REFERENCES productos(producto_id) ON DELETE CASCADE
+);
+
+-- Tabla de carritos
+CREATE TABLE carritos (
+    carrito_id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL UNIQUE,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id) ON DELETE CASCADE
+);
+
+-- Tabla de items del carrito
+CREATE TABLE items_carrito (
+    item_id INT AUTO_INCREMENT PRIMARY KEY,
+    carrito_id INT NOT NULL,
+    producto_id INT NOT NULL,
+    cantidad INT NOT NULL DEFAULT 1,
+    fecha_agregado TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (carrito_id) REFERENCES carritos(carrito_id) ON DELETE CASCADE,
+    FOREIGN KEY (producto_id) REFERENCES productos(producto_id) ON DELETE CASCADE,
+    UNIQUE KEY (carrito_id, producto_id)
+);
+
+-- Tabla de reseñas
+CREATE TABLE resenas (
+    resena_id INT AUTO_INCREMENT PRIMARY KEY,
+    producto_id INT NOT NULL,
+    usuario_id INT NOT NULL,
+    calificacion TINYINT NOT NULL CHECK (calificacion BETWEEN 1 AND 5),
+    comentario TEXT,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    aprobada BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (producto_id) REFERENCES productos(producto_id) ON DELETE CASCADE,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id) ON DELETE CASCADE
+);
+select * from resenas;
+-- Tabla de favoritos
+CREATE TABLE favoritos (
+    favorito_id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    producto_id INT NOT NULL,
+    fecha_agregado TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id) ON DELETE CASCADE,
+    FOREIGN KEY (producto_id) REFERENCES productos(producto_id) ON DELETE CASCADE,
+    UNIQUE KEY (usuario_id, producto_id)
+);
+
+-- Tabla de proveedores
+CREATE TABLE proveedores (
+    proveedor_id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    contacto_nombre VARCHAR(100),
+    telefono VARCHAR(20),
+    email VARCHAR(100),
+    direccion TEXT,
+    pais VARCHAR(50),
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    activo BOOLEAN DEFAULT TRUE
+);
+
+-- Tabla de promociones
+CREATE TABLE promociones (
+    promocion_id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    descuento_porcentaje DECIMAL(5,2) CHECK (descuento_porcentaje BETWEEN 0 AND 100),
+    fecha_inicio DATE NOT NULL,
+    fecha_fin DATE NOT NULL,
+    activo BOOLEAN DEFAULT TRUE
+);
+
+-- Tabla intermedia promociones-productos
+CREATE TABLE promociones_productos (
+    promocion_id INT NOT NULL,
+    producto_id INT NOT NULL,
+    PRIMARY KEY (promocion_id, producto_id),
+    FOREIGN KEY (promocion_id) REFERENCES promociones(promocion_id) ON DELETE CASCADE,
+    FOREIGN KEY (producto_id) REFERENCES productos(producto_id) ON DELETE CASCADE
+);
+
+
+INSERT INTO categorias (nombre, descripcion, imagen_url) VALUES
+('Vinos', 'Vinos tintos, blancos y rosados de diferentes países', 'https://ejemplo.com/vinos.jpg'),
+('Whiskies', 'Whiskies escoceses, irlandeses y bourbon', 'https://ejemplo.com/whiskies.jpg');
+
+INSERT INTO categorias (nombre, descripcion, imagen_url) VALUES
+('Ron', 'Ron con sabor a coco', 'https://cocanasa.org/img/p/4/1/1/411.jpg');
+
+INSERT INTO productos (categoria_id, nombre, descripcion, precio, precio_oferta, stock, imagen_url, marca, grado_alcoholico, pais_origen, destacado) VALUES
+(1, 'Vino Tinto Reserva', 'Vino tino añejo 12 meses en barrica', 25.99, 22.50, 50, 'https://ejemplo.com/vino1.jpg', 'Bodega Noble', 13.5, 'España', TRUE),
+(2, 'Whisky Single Malt', 'Whisky escocés de alta calidad', 45.75, NULL, 30, 'https://ejemplo.com/whisky1.jpg', 'Highland', 40.0, 'Escocia', FALSE);
+
+INSERT INTO usuarios (email, password, nombre, apellido, direccion, telefono, fecha_nacimiento, rol, verificado) VALUES
+('cliente1@gmail.com', 'cliente1', 'Juan', 'Pérez', 'Calle Falsa 123, Madrid', '+34666555444', '1985-05-15', 'cliente', TRUE),
+('admin@gmail.com', 'admin123', 'Ana', 'García', 'Avenida Principal 456, Barcelona', '+34777888999', '1980-10-20', 'admin', TRUE);
+
+INSERT INTO pedidos (usuario_id, estado, total, direccion_envio, metodo_pago) VALUES
+(1, 'entregado', 68.49, 'Calle Falsa 123, Madrid', 'tarjeta'),
+(1, 'procesando', 45.75, 'Calle Falsa 123, Madrid', 'transferencia');
+/*select* from pedidos;*/
+INSERT INTO detalles_pedido (pedido_id, producto_id, cantidad, precio_unitario, subtotal) VALUES
+(1, 1, 2, 22.50, 45.00),
+(1, 2, 1, 23.49, 23.49);
+
+INSERT INTO carritos (usuario_id) VALUES
+(1),
+(2);
+
+INSERT INTO items_carrito (carrito_id, producto_id, cantidad) VALUES
+(1, 1, 3),
+(1, 2, 1);
+
+INSERT INTO resenas (producto_id, usuario_id, calificacion, comentario, aprobada) VALUES
+(1, 1, 5, 'Excelente vino, muy buen bouquet', TRUE),
+(2, 1, 4, 'Buen whisky, aunque un poco caro', TRUE);
+
+INSERT INTO favoritos (usuario_id, producto_id) VALUES
+(1, 2),
+(2, 1);
+
+INSERT INTO proveedores (nombre, contacto_nombre, telefono, email, direccion, pais) VALUES
+('Distribuidora Vinos SL', 'Carlos Martínez', '+34911222333', 'contacto@vinossl.com', 'Polígono Industrial Norte, Madrid', 'España'),
+('Importadora Whiskies', 'Laura Smith', '+34944555666', 'info@importwhisky.com', 'Calle Comercio 45, Edimburgo', 'Reino Unido');
+
+INSERT INTO promociones (nombre, descripcion, descuento_porcentaje, fecha_inicio, fecha_fin) VALUES
+('Otoño de Vinos', 'Descuento especial en vinos seleccionados', 15.00, '2023-09-01', '2023-11-30'),
+('Black Friday', 'Grandes descuentos en toda la tienda', 25.00, '2023-11-24', '2023-11-26');
+
+INSERT INTO promociones_productos (promocion_id, producto_id) VALUES
+(1, 1),
+(2, 2);
+
+UPDATE usuarios
+SET nombre = 'pepe',
+    rol = 'admin'
+WHERE email = 'pepe@gmail.com';
+
+
+
